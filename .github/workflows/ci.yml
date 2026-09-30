@@ -19,9 +19,10 @@ jobs:
           # needs a real short SHA.
           fetch-depth: 0
 
+      # No `version:` here on purpose. The action refuses to run when the
+      # version is given both here and as `packageManager` in package.json,
+      # and package.json is the one that also pins the local toolchain.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         with:
