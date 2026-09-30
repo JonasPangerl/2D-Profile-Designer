@@ -1,0 +1,33 @@
+{
+  "name": "2d-profile-designer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.6",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @foil/studio dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "check:ascii": "node scripts/check-ascii.mjs",
+    "check:purity": "node scripts/check-geometry-purity.mjs",
+    "check:branding": "node scripts/check-branding.mjs",
+    "verify": "pnpm check:ascii && pnpm check:purity && pnpm check:branding && pnpm -r typecheck && pnpm lint && pnpm -r test && pnpm -r build"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.14.0",
+    "eslint": "^9.14.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.13.0",
+    "vitest": "^2.1.4"
+  }
+}
