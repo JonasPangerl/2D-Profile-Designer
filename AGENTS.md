@@ -140,12 +140,18 @@ markdown checklist.
 | Working branch | `dev` |
 | Protected branch | `main` |
 | Board title | `2D Profile Designer` |
-| Board number | not created yet - see below |
-| Board ID | not created yet - see below |
+| Board number | 2 |
+| Board ID | `PVT_kwHOCYSVB84BlOpQ` |
+| Board URL | https://github.com/users/JonasPangerl/projects/2 |
+| Visibility | public |
 
-### Creating the board (once)
+Do not confuse it with board 1, `FlowLense Board`, which belongs to a
+different project under the same owner.
 
-The `gh` token needs the `project` scope, which it does not have by default:
+### If the board ever has to be recreated
+
+The `gh` token needs the `project` scope, which it does not have by
+default:
 
 ```bash
 gh auth refresh -s project

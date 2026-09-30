@@ -17,7 +17,8 @@ Pages publishes the built app regardless of the repository's visibility.
 The candidates discussed were MIT (too permissive if the tool becomes a
 sales argument for the owner's CFD software), PolyForm Noncommercial and
 BSL 1.1.
-Tracked as `BL-01`.
+Tracked as `BL-01`. Raised to high priority by D5 below: the repository is
+public, so the source is already readable.
 
 **D3. Angles.** (2026-09-30, derived from the coding standards)
 Radians everywhere inside the code, degrees only at the UI boundary.
@@ -26,11 +27,15 @@ Radians everywhere inside the code, degrees only at the UI boundary.
 Encoded as `null`, because JSON has no infinity literal. Converted on load
 and on write, covered by a round-trip test.
 
-## Open
+**D5. Repository visibility: public.** (owner, 2026-09-30)
+Settles what was open point O1. GitHub Pages on the free plan needs a public
+repository, and the tool is meant to be reachable from the owner's website.
+Consequence, and it is the reason `BL-01` is high priority: the source is
+readable by anyone today, and with no `LICENSE` file it is all rights
+reserved, which is a defensible state but should be a decision rather than
+an oversight.
 
-**O1. Repository public or private.**
-Owner decision. It interacts with D2: GitHub Pages on a free plan requires a
-public repository.
+## Open
 
 **O2. Sharp corners in the chain.**
 `R = 0` is specified as a sharp corner. Whether the UI should allow a sharp
