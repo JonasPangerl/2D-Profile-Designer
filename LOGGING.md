@@ -49,6 +49,19 @@ reused for a different meaning and never renamed once it has shipped.
 | `GEOM_ZERO_ARM` | An arm length of 0 was passed to the chain builder |
 | `GEOM_DEGREE_TOO_LOW` | A segment degree below 4 was requested where both ends need curvature control |
 | `GEOM_OPEN_CHAIN` | The chain did not close at the trailing edge |
+| `GEOM_DEGREE_MISMATCH` | `segmentDegrees` does not have `anchors.length - 1` entries |
+| `GEOM_DEGENERATE_SEGMENT` | The two curvature conditions are parallel at degree 4 |
+| `GEOM_SHARP_CORNER_UNSUPPORTED` | `R = 0` was requested; Phase 1 cannot represent a corner |
+| `GEOM_TOO_FEW_ANCHORS` | Fewer than a trailing edge pair plus a leading edge anchor |
+| `GEOM_NO_SUCH_ELEMENT` | No element with that id |
+| `GEOM_NO_SUCH_ANCHOR` | No anchor at that index |
+| `GEOM_NO_SUCH_SEGMENT` | No segment at that index |
+| `GEOM_DERIVED_FIELD` | A patch to an anchor field an element parameter owns |
+| `GEOM_LEADING_EDGE_MOVED` | A move that would make a different anchor the leading edge |
+| `GEOM_ANCHOR_REQUIRED` | The leading edge or a trailing edge anchor cannot be deleted |
+| `GEOM_DUPLICATE_ID` | An element with that id already exists |
+| `GEOM_LAST_ELEMENT` | A document keeps at least one element |
+| `GEOM_INVALID_NUMBER` | A value that is not finite, or outside its legal range |
 | `SCHEMA_UNKNOWN_VERSION` | `schemaVersion` is newer than this build knows |
 | `SCHEMA_MIGRATION_FAILED` | A migration function threw |
 | `DAT_AMBIGUOUS_FORMAT` | Selig and Lednicer detection disagreed |

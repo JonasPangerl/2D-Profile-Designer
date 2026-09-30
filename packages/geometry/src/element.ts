@@ -31,6 +31,42 @@ export function leadingEdgeIndex(anchors: readonly Anchor[]): number {
   return best;
 }
 
+/** Which of an anchor's fields the element-level parameters own. */
+export interface DerivedAnchorFields {
+  /** `x` and `y` are fixed by the chord normalisation and `teThickness`. */
+  readonly position: boolean;
+  /** `phi` is fixed by `leAxisAngle`, or by `departureAngle` and `wedgeAngle`. */
+  readonly phi: boolean;
+  /** `R` is fixed by `leRadius`. */
+  readonly radius: boolean;
+}
+
+/**
+ * The single declaration of which anchor fields are derived.
+ *
+ * `resolveAnchors` below recomputes exactly these; `edit.ts` refuses to
+ * patch them; the UI draws their handles as not draggable. All three ask
+ * this function rather than restating the rule, because three copies of one
+ * decision drift, and the drift is silent: a field a user can set, that is
+ * stored, and that the renderer then ignores.
+ *
+ * `tests/edit-guards.test.ts` walks `resolveAnchors` field by field and
+ * fails if it changes a field this function does not declare.
+ */
+export function derivedAnchorFields(
+  anchors: readonly Anchor[],
+  anchorIndex: number,
+): DerivedAnchorFields {
+  const last = anchors.length - 1;
+  if (anchorIndex === 0 || anchorIndex === last) {
+    return { position: true, phi: true, radius: false };
+  }
+  if (anchorIndex === leadingEdgeIndex(anchors)) {
+    return { position: false, phi: true, radius: true };
+  }
+  return { position: false, phi: false, radius: false };
+}
+
 /**
  * The two downstream-pointing trailing-edge tangents, from the element-level
  * parameters. Their mean is `departureAngle`, their difference is

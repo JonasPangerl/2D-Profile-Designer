@@ -156,3 +156,34 @@ describe("selection and visibility", () => {
     expect(useEditor.getState().canUndo()).toBe(false);
   });
 });
+
+describe("C4 - a slider drag is one undo entry, not one per step", () => {
+  it("survives a full sweep of the widest slider in the panel", () => {
+    // The departure angle slider is min -30, max 30, step 0.25: 241 steps.
+    // Before the panel passed a coalesce key, one sweep pushed 241 entries,
+    // overflowed HISTORY_LIMIT and made the pre-drag document
+    // unrecoverable. Found by review of commit d8d681b.
+    const start = serialiseDocumentJson(useEditor.getState().doc);
+    const key = "panel:element-1:departureAngle";
+    for (let step = 0; step <= 240; step += 1) {
+      const degrees = -30 + step * 0.25;
+      useEditor
+        .getState()
+        .apply(
+          (doc) => setElementParam(doc, ID, "departureAngle", (degrees * Math.PI) / 180),
+          key,
+        );
+    }
+    useEditor.getState().endCoalescing();
+
+    expect(useEditor.getState().past.length).toBe(1);
+    useEditor.getState().undo();
+    expect(serialiseDocumentJson(useEditor.getState().doc)).toBe(start);
+  });
+
+  it("gives two different fields two entries even without an end between them", () => {
+    useEditor.getState().apply((doc) => setElementParam(doc, ID, "leRadius", 0.03), "panel:element-1:leRadius");
+    useEditor.getState().apply((doc) => setElementParam(doc, ID, "wedgeAngle", 0.3), "panel:element-1:wedgeAngle");
+    expect(useEditor.getState().past.length).toBe(2);
+  });
+});

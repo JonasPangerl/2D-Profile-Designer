@@ -49,7 +49,14 @@ function pathFrom(points: readonly Point[]): string {
   return `M ${head.x.toFixed(6)} ${head.y.toFixed(6)} ${rest} Z`;
 }
 
-function boundsOf(all: readonly Point[]): { x: number; y: number; w: number; h: number } {
+interface ViewBox {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+}
+
+function boundsOf(all: readonly Point[]): ViewBox {
   let minX = Number.POSITIVE_INFINITY;
   let minY = Number.POSITIVE_INFINITY;
   let maxX = Number.NEGATIVE_INFINITY;
@@ -113,7 +120,17 @@ export function ProfileEditor({
     [doc, hidden, showComb, combGain],
   );
 
-  const view = boundsOf(rendered.flatMap((r) => r.contour));
+  /**
+   * The view is refitted to the contour on every render, EXCEPT while a
+   * drag is in flight. Refitting mid-drag moves the whole scene under the
+   * cursor, so the profile appears to slide away from the pointer even
+   * though the coordinate mapping is exact. Found while reviewing commit
+   * d8d681b.
+   */
+  const frozenView = useRef<ViewBox | null>(null);
+  const liveView = boundsOf(rendered.flatMap((r) => r.contour));
+  if (dragging === null) frozenView.current = liveView;
+  const view = frozenView.current ?? liveView;
   const scale = Math.max(view.w, view.h) / 400;
 
   /**

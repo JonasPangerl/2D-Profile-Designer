@@ -330,3 +330,22 @@ footer p {
     display: none;
   }
 }
+
+.error-boundary {
+  padding: 16px;
+  color: var(--warn);
+  font-size: 13px;
+}
+
+.error-boundary h3 {
+  margin-top: 0;
+}
+
+.error-boundary pre {
+  white-space: pre-wrap;
+  background: #fdf1f0;
+  border: 1px solid #f3c9c5;
+  border-radius: 5px;
+  padding: 8px;
+  color: var(--text);
+}

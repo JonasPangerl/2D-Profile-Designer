@@ -33,7 +33,7 @@ The **Agent** column holds the care level and the thinking effort
 | BL-06 | [#5](https://github.com/JonasPangerl/2D-Profile-Designer/issues/5) | M3: curvature comb and curvature-over-arclength plot | high | M | high / medium | Kernel already produces comb data and inflection markers; the UI side is missing |
 | BL-07 | [#6](https://github.com/JonasPangerl/2D-Profile-Designer/issues/6) | Sharp corner handling (`R = 0`) end to end | medium | M | high / medium | A model change: needs `phiIn`/`phiOut`, schema 2 and a migration. Starts with a spec change |
 | BL-13 | [#11](https://github.com/JonasPangerl/2D-Profile-Designer/issues/11) | Warn when an arm length is too long for its radius | medium | S | normal / medium | M2 has landed, so this is unblocked. Measured numbers in the issue |
-| BL-15 | [#13](https://github.com/JonasPangerl/2D-Profile-Designer/issues/13) | One door for the derived-anchor-field list | medium | S | high / medium | The list of which anchor fields the element parameters own exists in three places: `element.ts`, `edit.ts` and `AnchorHandles.tsx`. They agree today and nothing stops them drifting |
+| BL-16 | [#14](https://github.com/JonasPangerl/2D-Profile-Designer/issues/14) | Show a refused edit in the UI, not only the console | medium | S | normal / medium | The new guards reject silently from the user's point of view: the handle stops and the reason goes to the console |
 | BL-14 | [#12](https://github.com/JonasPangerl/2D-Profile-Designer/issues/12) | Degree-dependent arm lengths in the ladder preset | low | S | normal / medium | Preset is tuned for degree 4; degree 8 is wavy. Continuity is unaffected |
 
 ## Waiting on the owner

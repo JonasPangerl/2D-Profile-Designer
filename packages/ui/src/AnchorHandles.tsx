@@ -13,8 +13,14 @@
  * | radius | `R`, by dragging the centre of curvature |
  */
 
-import { toWorld, vec } from "@foil/geometry";
-import type { Anchor, Placement, Point, ResolvedElement } from "@foil/geometry";
+import { derivedAnchorFields, toWorld, vec } from "@foil/geometry";
+import type {
+  Anchor,
+  DerivedAnchorFields,
+  Placement,
+  Point,
+  ResolvedElement,
+} from "@foil/geometry";
 
 /**
  * Furthest the centre-of-curvature handle is drawn from its anchor, in
@@ -44,17 +50,20 @@ export interface AnchorHandlesProps {
   readonly onPointerDown: (target: HandleTarget, event: React.PointerEvent) => void;
 }
 
-/** Which anchor fields the element-level parameters own. Mirrors `edit.ts`. */
-export function derivedAt(
-  element: ResolvedElement,
-  anchorIndex: number,
-): { position: boolean; phi: boolean; radius: boolean } {
-  const last = element.anchors.length - 1;
-  if (anchorIndex === 0 || anchorIndex === last) {
-    return { position: true, phi: true, radius: false };
-  }
-  if (anchorIndex === element.leIndex) return { position: false, phi: true, radius: true };
-  return { position: false, phi: false, radius: false };
+/**
+ * Which anchor fields the element-level parameters own.
+ *
+ * This asks the geometry core rather than restating the rule. It used to
+ * be a third copy of the same decision, alongside `resolveAnchors` and
+ * `derivedFields`; the three agreed, and nothing stopped them drifting.
+ * The drift would have been silent in the worst direction: a handle that
+ * still looks draggable, moves under the cursor, and does nothing.
+ *
+ * Note it reads the SPEC anchors, not the resolved ones, which is what the
+ * geometry side does too.
+ */
+export function derivedAt(element: ResolvedElement, anchorIndex: number): DerivedAnchorFields {
+  return derivedAnchorFields(element.spec.anchors, anchorIndex);
 }
 
 /** Where the outgoing arm handle sits, in element-local coordinates. */

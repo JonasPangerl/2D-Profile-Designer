@@ -64,13 +64,21 @@ export const CLUSTER_SIN_FLOOR = 0.05;
 export const DEFAULT_CURVATURE_WEIGHT = 1;
 
 /**
- * Largest factor by which `deleteAnchor` may grow a neighbour's arm when it
- * merges two segments back into one.
+ * Largest arm length `deleteAnchor` may leave behind, in chord units.
  *
- * Deleting an anchor that was created by a split restores the arms exactly,
- * because the split parameter is recoverable from the departing anchor. For
- * a lopsided hand-placed anchor the same formula would ask for an arm many
- * times the chord, so it is capped. 20 covers every split down to t = 0.05
- * exactly and clamps only the cases that were never a split.
+ * Deleting an anchor scales its neighbours' arms back up, and for a
+ * lopsided anchor the ratio heuristic would ask for an arm many times the
+ * chord. So the result is capped.
+ *
+ * The cap is on the resulting LENGTH, not on the growth factor, and that
+ * distinction matters: an earlier version capped the factor at 20, which
+ * silently broke the insert-then-delete round trip for every split
+ * parameter outside [0.05, 0.95] - 8.1e-3 chord at t = 0.02. Capping the
+ * length cannot bite on a genuine inverse, because the restored arm is
+ * exactly the arm the split shortened, and that arm was already a legal
+ * value. Found by review of commit d8d681b.
+ *
+ * 2 chords is far beyond any sane arm and well inside the range where the
+ * curve construction stays numerically sound.
  */
-export const MAX_ARM_REGROWTH = 20;
+export const MAX_ARM_LENGTH = 2;

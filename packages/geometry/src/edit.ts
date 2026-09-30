@@ -14,10 +14,10 @@
  */
 
 import { GeometryError } from "./errors.js";
-import { MAX_ARM_REGROWTH, MIN_SEGMENT_DEGREE } from "./constants.js";
+import { DEFAULT_SEGMENT_DEGREE, MAX_ARM_LENGTH, MIN_ARM_LENGTH, MIN_SEGMENT_DEGREE } from "./constants.js";
 import { degree, firstDerivative } from "./bezier.js";
 import { evaluateChain } from "./curvature.js";
-import { leadingEdgeIndex, resolveElement } from "./element.js";
+import { derivedAnchorFields, leadingEdgeIndex, resolveElement } from "./element.js";
 import type { Anchor, BezierSegment, ElementSpec, Placement } from "./types.js";
 import type { ProfileDocument } from "./schema.js";
 import { length } from "./vec.js";
@@ -56,19 +56,58 @@ function checkFinite(value: number, what: string): void {
 }
 
 /**
- * Which anchor fields the element-level parameters own.
+ * Which anchor fields the element-level parameters own, as a field list.
  *
- * `resolveElement` recomputes these from `teThickness`, `departureAngle`,
- * `wedgeAngle`, `leAxisAngle` and `leRadius`, so a patch to one of them
- * would be accepted, stored, and then silently ignored by the renderer.
- * Rejecting the patch and pointing at the parameter that does own the field
- * is the only honest answer.
+ * The decision itself lives in `derivedAnchorFields` in `element.ts`, next
+ * to the resolver that does the overwriting; this only translates it into
+ * the shape the patch check wants. `resolveElement` recomputes these, so a
+ * patch to one of them would be accepted, stored, and then silently
+ * ignored by the renderer. Rejecting the patch and pointing at the
+ * parameter that does own the field is the only honest answer.
  */
 function derivedFields(element: ElementSpec, anchorIndex: number): readonly (keyof Anchor)[] {
-  const last = element.anchors.length - 1;
-  if (anchorIndex === 0 || anchorIndex === last) return ["x", "y", "phi"];
-  if (anchorIndex === leadingEdgeIndex(element.anchors)) return ["phi", "R"];
-  return [];
+  const derived = derivedAnchorFields(element.anchors, anchorIndex);
+  const fields: (keyof Anchor)[] = [];
+  if (derived.position) fields.push("x", "y");
+  if (derived.phi) fields.push("phi");
+  if (derived.radius) fields.push("R");
+  return fields;
+}
+
+/**
+ * Reject a value that `resolveElement` would later refuse to build with.
+ *
+ * `edit.ts` promises that anything it accepts is renderable. Without this
+ * the promise was false: a typed `R` of 0 or a negative arm was stored
+ * happily and then threw out of the renderer, which in a React tree means
+ * the editor unmounts with the bad value already committed to state, so
+ * the user cannot even undo it. Found by review of commit d8d681b.
+ */
+function checkAnchorValue(field: keyof Anchor, value: number): void {
+  if (field === "R") {
+    if (value === 0) {
+      throw new GeometryError(
+        "GEOM_SHARP_CORNER_UNSUPPORTED",
+        "R = 0 means a sharp corner, which Phase 1 cannot represent (see BL-07)",
+        { field },
+      );
+    }
+    // Infinity is a curvature-free transition, which is meaningful.
+    if (!Number.isFinite(value) && value !== Infinity && value !== -Infinity) {
+      throw new GeometryError("GEOM_INVALID_NUMBER", "R must be a number or Infinity", {
+        value,
+      });
+    }
+    return;
+  }
+  checkFinite(value, String(field));
+  if ((field === "Lin" || field === "Lout") && value < MIN_ARM_LENGTH) {
+    throw new GeometryError(
+      "GEOM_ZERO_ARM",
+      `${String(field)} must be at least ${MIN_ARM_LENGTH}`,
+      { value },
+    );
+  }
 }
 
 /** The element-level parameter that owns a derived anchor field, for the error message. */
@@ -128,18 +167,39 @@ export function setAnchor(
       }
       const value = patch[field];
       if (value === undefined) continue;
-      // R = Infinity is a curvature-free transition, which is meaningful.
-      if (field === "R" && value === Infinity) continue;
-      checkFinite(value, String(field));
+      checkAnchorValue(field, value);
     }
 
     const anchors = [...element.anchors];
     anchors[anchorIndex] = { ...anchor, ...patch };
+
+    // The leading edge is whichever anchor has the smallest x, so a move
+    // can hand the role to a different anchor - and then the element-level
+    // nose parameters start rewriting THAT anchor's tangent and radius.
+    // Measured before this guard: dragging the nose from x = 0 to x = 0.5
+    // replaced anchor 1's stored R of 0.9 with 0.02 and moved the contour
+    // by 2.1e-1 chord, silently. A drag on one anchor must not rewrite
+    // another. Found by review of commit d8d681b.
+    const leBefore = leadingEdgeIndex(element.anchors);
+    const leAfter = leadingEdgeIndex(anchors);
+    if (leBefore !== leAfter) {
+      throw new GeometryError(
+        "GEOM_LEADING_EDGE_MOVED",
+        "this move would make a different anchor the leading edge, which would rewrite its tangent and radius",
+        { elementId, anchorIndex, leadingEdgeBefore: leBefore, leadingEdgeAfter: leAfter },
+      );
+    }
+
     return { ...element, anchors };
   });
 }
 
-/** Set one element-level scalar. */
+/**
+ * Set one element-level scalar.
+ *
+ * The range checks are here for the same reason as the anchor ones: what
+ * this module accepts, the renderer must be able to build.
+ */
 export function setElementParam(
   doc: ProfileDocument,
   elementId: string,
@@ -147,6 +207,29 @@ export function setElementParam(
   value: number,
 ): ProfileDocument {
   checkFinite(value, key);
+  if (key === "leRadius") {
+    if (value === 0) {
+      throw new GeometryError(
+        "GEOM_SHARP_CORNER_UNSUPPORTED",
+        "a leading edge radius of 0 is a cusp, which Phase 1 cannot represent (see BL-07)",
+        { value },
+      );
+    }
+    if (value < 0) {
+      throw new GeometryError(
+        "GEOM_INVALID_NUMBER",
+        "the leading edge radius is a positive radius; a negative one would turn the nose inside out",
+        { value },
+      );
+    }
+  }
+  if (key === "teThickness" && value < 0) {
+    throw new GeometryError(
+      "GEOM_INVALID_NUMBER",
+      "the trailing edge thickness cannot be negative; it would cross the two anchors over",
+      { value },
+    );
+  }
   return withElement(doc, elementId, (element) => ({ ...element, [key]: value }));
 }
 
@@ -191,7 +274,7 @@ export function setSegmentDegree(
     const degrees =
       element.segmentDegrees.length === element.anchors.length - 1
         ? [...element.segmentDegrees]
-        : new Array<number>(element.anchors.length - 1).fill(MIN_SEGMENT_DEGREE);
+        : new Array<number>(element.anchors.length - 1).fill(DEFAULT_SEGMENT_DEGREE);
     degrees[segmentIndex] = degree;
     return { ...element, segmentDegrees: degrees };
   });
@@ -256,14 +339,24 @@ export function insertAnchor(
     const n = degree(segment);
     const speed = length(firstDerivative(segment, t));
 
+    const armIn = (t * speed) / n;
+    const armOut = ((1 - t) * speed) / n;
+    if (armIn < MIN_ARM_LENGTH || armOut < MIN_ARM_LENGTH) {
+      throw new GeometryError(
+        "GEOM_ZERO_ARM",
+        "the insertion parameter is so close to an end that one arm would collapse",
+        { t, armIn, armOut },
+      );
+    }
+
     const inserted: Anchor = {
       x: at.point.x,
       y: at.point.y,
       phi: Math.atan2(at.tangent.y, at.tangent.x),
       // kappa of exactly 0 is a straight point, which is R = Infinity.
       R: at.kappa === 0 ? Infinity : 1 / at.kappa,
-      Lin: (t * speed) / n,
-      Lout: ((1 - t) * speed) / n,
+      Lin: armIn,
+      Lout: armOut,
     };
 
     const anchors = [...element.anchors];
@@ -275,7 +368,7 @@ export function insertAnchor(
     const oldDegrees =
       element.segmentDegrees.length === segmentCount
         ? element.segmentDegrees
-        : new Array<number>(segmentCount).fill(MIN_SEGMENT_DEGREE);
+        : new Array<number>(segmentCount).fill(DEFAULT_SEGMENT_DEGREE);
     const degrees = [...oldDegrees];
     // The split segment becomes two segments of the same degree.
     degrees.splice(segmentIndex + 1, 0, oldDegrees[segmentIndex] as number);
@@ -297,13 +390,15 @@ export function insertAnchor(
  * `t = Lin / (Lin + Lout)` whatever `s` and `n` were. Without this the
  * neighbours keep the shortened arms the split gave them and the contour
  * sags: measured on the ladder preset, 7.9e-3 chord without the rescale
- * against 1.4e-5 with it.
+ * against round-off with it, at every split parameter from 0.001 to 0.999.
  *
  * For an anchor a user placed by hand rather than by splitting, the same
  * formula is still the right shape of answer - it restores arms in
  * proportion to how the departing anchor divided its neighbours - but it is
- * a heuristic there, so the growth is capped at `MAX_ARM_REGROWTH` to keep
- * a lopsided anchor from throwing an arm across the whole chord.
+ * a heuristic there, so the RESULT is capped at `MAX_ARM_LENGTH` to keep a
+ * lopsided anchor from throwing an arm across the whole chord. Capping the
+ * result rather than the growth factor is what keeps the inverse exact: the
+ * restored arm is the arm the split shortened, and that was already legal.
  */
 export function deleteAnchor(
   doc: ProfileDocument,
@@ -331,19 +426,25 @@ export function deleteAnchor(
     const after = element.anchors[anchorIndex + 1] as Anchor;
     const armSum = departing.Lin + departing.Lout;
     const split = armSum > 0 ? departing.Lin / armSum : 0.5;
-    const growBefore = Math.min(1 / Math.max(split, 1e-9), MAX_ARM_REGROWTH);
-    const growAfter = Math.min(1 / Math.max(1 - split, 1e-9), MAX_ARM_REGROWTH);
+    const growBefore = 1 / Math.max(split, Number.MIN_VALUE);
+    const growAfter = 1 / Math.max(1 - split, Number.MIN_VALUE);
 
     const rescaled = [...element.anchors];
-    rescaled[anchorIndex - 1] = { ...before, Lout: before.Lout * growBefore };
-    rescaled[anchorIndex + 1] = { ...after, Lin: after.Lin * growAfter };
+    rescaled[anchorIndex - 1] = {
+      ...before,
+      Lout: Math.min(before.Lout * growBefore, MAX_ARM_LENGTH),
+    };
+    rescaled[anchorIndex + 1] = {
+      ...after,
+      Lin: Math.min(after.Lin * growAfter, MAX_ARM_LENGTH),
+    };
 
     const anchors = rescaled.filter((_, i) => i !== anchorIndex);
     const segmentCount = element.anchors.length - 1;
     const oldDegrees =
       element.segmentDegrees.length === segmentCount
         ? element.segmentDegrees
-        : new Array<number>(segmentCount).fill(MIN_SEGMENT_DEGREE);
+        : new Array<number>(segmentCount).fill(DEFAULT_SEGMENT_DEGREE);
     // The two segments either side of the anchor become one. Keep the
     // higher of the two degrees, so removing an anchor never reduces the
     // shape control that is left.

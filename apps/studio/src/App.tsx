@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 import {
   ElementList,
+  ErrorBoundary,
   ParameterPanel,
   ProfileEditor,
   useEditor,
@@ -71,7 +72,9 @@ export function App(): JSX.Element {
       </header>
 
       <section className="canvas">
-        <ProfileEditor combGain={combGain} showComb={showComb} />
+        <ErrorBoundary onRecover={undo}>
+          <ProfileEditor combGain={combGain} showComb={showComb} />
+        </ErrorBoundary>
       </section>
 
       <div className="columns">

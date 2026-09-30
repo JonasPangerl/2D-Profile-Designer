@@ -17,6 +17,84 @@ Updated by: setup session
 
 ---
 
+## 2026-09-30c - the independent review of M2, and what it found
+
+The M2 diff (`d8d681b`) went to an independent reviewer in a fresh context,
+as high-care work must. It came back with five confirmed defects. Three of
+them were exactly the class the diff claimed to be closing, which is the
+argument for the review in one sentence: **the author shared the
+assumptions that produced the bugs.** Fixed in `<pending>`.
+
+### What it found
+
+**Dragging one anchor could rewrite another.** The leading edge is defined
+as the anchor with the smallest `x`, so any `x` drag can hand the role to a
+different anchor - and the element-level nose parameters then start
+rewriting that anchor's tangent and radius. Reproduced: dragging the nose
+from `x = 0` to `x = 0.5` replaced anchor 1's stored `R` of 0.9 with 0.02
+and moved the contour by **2.1e-1 chord**, silently. `setAnchor` now
+compares the leading edge index before and after and refuses the move with
+`GEOM_LEADING_EDGE_MOVED`.
+
+`LESSON:` the guard was written in terms of FIELDS, and the hole was in the
+INDEX. A check that names what may not change is not the same as a check
+that the result is still the thing you meant.
+
+**The arm regrowth cap broke the inverse it was meant to protect.**
+`deleteAnchor` capped the growth FACTOR at 20, so the insert-then-delete
+round trip was exact only for split parameters in `[0.05, 0.95]`. Outside
+that band it failed quietly: 8.1e-3 chord at `t = 0.02`, 1.6e-3 at
+`t = 0.98`. The tests sampled 0.25, 0.5 and 0.75 and could not see it. The
+cap is now on the resulting arm LENGTH, which cannot bite on a genuine
+inverse because the restored arm is the arm the split shortened and that
+was already a legal value. Exact now from `t = 0.001` to `t = 0.999`.
+
+`HONEST CORRECTION:` the previous entry, the commit message of `d8d681b`
+and the comment in `constants.ts` all said "delete is the exact inverse of
+insert". That was true only over the band the tests happened to sample, and
+it was stated as a measurement. It is now true over the whole interval, and
+the claim carries the range it was checked over.
+
+**An accepted edit could make the document unrenderable.** `setAnchor`
+validated finiteness and nothing else, so a typed `R` of 0 or a negative
+arm length was stored happily and then threw out of `resolveElement` - in a
+React tree that unmounts the editor with the bad value already committed to
+state, so the user cannot even undo. `edit.ts` now rejects at the door, and
+a test asserts the property behind it: anything `edit.ts` accepts, the
+renderer can build. An `ErrorBoundary` is there as defence in depth, with
+undo as the recovery, because the point of a boundary is the case nobody
+thought of.
+
+**One slider drag overflowed the undo history.** The parameter panel's
+`Apply` type had no `coalesceKey` parameter, so every slider step was its
+own entry: 241 from one departure-angle sweep, against a 100-entry cap,
+which made the pre-drag document unrecoverable. The store's coalescing was
+correct all along; the panel simply never used it.
+
+**Three copies of the derived-field list.** `resolveAnchors`,
+`derivedFields` and `derivedAt` each stated which anchor fields the element
+parameters own. They agreed, and nothing stopped them drifting. There is
+now one `derivedAnchorFields` in `element.ts` and a test that walks
+`resolveAnchors` field by field and fails if it changes a field the list
+does not declare. Closes `BL-15`.
+
+### Measurements
+
+| What | Before | After |
+|---|---|---|
+| Insert then delete at `t = 0.02` | 8.1e-3 chord | round-off |
+| Insert then delete at `t = 0.98` | 1.6e-3 chord | round-off |
+| Nose drag past the next anchor | 2.1e-1 chord, silent | refused |
+| Undo entries per slider sweep | 241 | 1 |
+| Tests | 119 | 137 |
+
+### Still open
+
+A refused edit is correct but invisible: the handle stops and the reason
+goes to the console. `BL-16`, issue #14.
+
+---
+
 ## 2026-09-30b - M2, the SVG editor
 
 ### Decisions

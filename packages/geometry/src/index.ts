@@ -25,7 +25,7 @@ export {
   DEFAULT_CURVATURE_WEIGHT,
   DEFAULT_SAMPLE_COUNT,
   DEFAULT_SEGMENT_DEGREE,
-  MAX_ARM_REGROWTH,
+  MAX_ARM_LENGTH,
   MIN_ARM_LENGTH,
   MIN_SEGMENT_DEGREE,
   MIN_SPEED,
@@ -50,13 +50,14 @@ export {
 export { buildSegment, offsetFromRadius, radiusFromOffset } from "./anchors.js";
 
 export {
+  derivedAnchorFields,
   leadingEdgeIndex,
   resolveAnchors,
   resolveElement,
   trailingEdgeTangents,
   validateElement,
 } from "./element.js";
-export type { ValidationIssue } from "./element.js";
+export type { DerivedAnchorFields, ValidationIssue } from "./element.js";
 
 export {
   buildComb,

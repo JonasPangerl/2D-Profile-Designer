@@ -16,7 +16,16 @@ import { useEffect, useState } from "react";
 export interface NumberFieldProps {
   readonly label: string;
   readonly value: number;
-  readonly onCommit: (value: number) => void;
+  /**
+   * `coalesce` is true while a slider is being dragged and false for a
+   * typed value. Without it a slider drag pushes one undo entry per step:
+   * measured on the departure angle slider, 241 entries from one gesture,
+   * which overflowed the 100-entry history and made the pre-drag document
+   * unrecoverable. Found by review of commit d8d681b.
+   */
+  readonly onCommit: (value: number, options: { coalesce: boolean }) => void;
+  /** Called when a slider gesture ends, so the next one starts a new entry. */
+  readonly onCommitEnd?: () => void;
   readonly step?: number;
   /** Slider bounds. Omit both to get a plain field with no slider. */
   readonly min?: number;
@@ -42,6 +51,7 @@ export function NumberField({
   disabled = false,
   disabledReason,
   allowInfinity = false,
+  onCommitEnd,
 }: NumberFieldProps): JSX.Element {
   const display = Number.isFinite(value) ? value.toFixed(decimals) : "inf";
   const [text, setText] = useState(display);
@@ -55,7 +65,7 @@ export function NumberField({
   const commit = (raw: string): void => {
     const trimmed = raw.trim().toLowerCase();
     if (allowInfinity && (trimmed === "inf" || trimmed === "infinity")) {
-      onCommit(Infinity);
+      onCommit(Infinity, { coalesce: false });
       return;
     }
     const parsed = Number(trimmed);
@@ -65,7 +75,7 @@ export function NumberField({
       setText(display);
       return;
     }
-    onCommit(parsed);
+    onCommit(parsed, { coalesce: false });
   };
 
   const showSlider = min !== undefined && max !== undefined && Number.isFinite(value);
@@ -85,7 +95,10 @@ export function NumberField({
           step={step}
           value={Math.min(Math.max(value, min), max)}
           disabled={disabled}
-          onChange={(e) => onCommit(Number(e.target.value))}
+          onChange={(e) => onCommit(Number(e.target.value), { coalesce: true })}
+          onPointerUp={onCommitEnd}
+          onKeyUp={onCommitEnd}
+          onBlur={onCommitEnd}
         />
       )}
       <input

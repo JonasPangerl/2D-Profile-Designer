@@ -86,8 +86,12 @@ export function ElementList(): JSX.Element {
                   }
                   disabled={doc.elements.length === 1}
                   onClick={() => {
+                    // Only clear the selection if the removal actually
+                    // happened; apply swallows a refused transformation.
                     apply((d) => removeElement(d, spec.id));
-                    if (isSelected) select(null);
+                    if (isSelected && !useEditor.getState().doc.elements.some((e) => e.id === spec.id)) {
+                      select(null);
+                    }
                   }}
                 >
                   delete
@@ -121,8 +125,9 @@ function AnchorActions(): JSX.Element | null {
     anchorIndex !== spec.anchors.length - 1 &&
     anchorIndex !== element.leIndex;
 
-  // Insert into the segment that starts at the selected anchor, or into the
-  // first segment when only the element is selected.
+  // Insert into the segment that STARTS at the selected anchor. The last
+  // anchor starts no segment, so it falls back to the one before it - and
+  // the button says so rather than claiming to insert after the selection.
   const segmentIndex = Math.min(anchorIndex ?? 0, spec.anchors.length - 2);
 
   return (
@@ -131,11 +136,15 @@ function AnchorActions(): JSX.Element | null {
       <button
         type="button"
         onClick={() => {
+          const before = useEditor.getState().doc.elements.find((e) => e.id === spec.id);
           apply((d) => insertAnchor(d, spec.id, segmentIndex, 0.5));
-          select(spec.id, segmentIndex + 1);
+          const after = useEditor.getState().doc.elements.find((e) => e.id === spec.id);
+          if (before !== undefined && after !== undefined && after.anchors.length > before.anchors.length) {
+            select(spec.id, segmentIndex + 1);
+          }
         }}
       >
-        Insert after {anchorIndex ?? 0}
+        Insert into segment {segmentIndex}
       </button>
       <button
         type="button"
@@ -147,8 +156,9 @@ function AnchorActions(): JSX.Element | null {
         }
         onClick={() => {
           if (anchorIndex === null) return;
+          const before = useEditor.getState().doc;
           apply((d) => deleteAnchor(d, spec.id, anchorIndex));
-          select(spec.id, null);
+          if (useEditor.getState().doc !== before) select(spec.id, null);
         }}
       >
         Delete selected

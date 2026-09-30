@@ -29,6 +29,7 @@ export function ParameterPanel(): JSX.Element {
   const doc = useEditor((s) => s.doc);
   const selection = useEditor((s) => s.selection);
   const apply = useEditor((s) => s.apply);
+  const endCoalescing = useEditor((s) => s.endCoalescing);
 
   if (selection === null) {
     return (
@@ -49,17 +50,43 @@ export function ParameterPanel(): JSX.Element {
 
   return (
     <aside className="panel">
-      <ElementSection spec={spec} apply={apply} />
+      <ElementSection spec={spec} apply={apply} endCoalescing={endCoalescing} />
       {selection.anchorIndex !== null && (
-        <AnchorSection spec={spec} anchorIndex={selection.anchorIndex} apply={apply} />
+        <AnchorSection
+          spec={spec}
+          anchorIndex={selection.anchorIndex}
+          apply={apply}
+          endCoalescing={endCoalescing}
+        />
       )}
     </aside>
   );
 }
 
-type Apply = (change: (doc: Parameters<typeof setAnchor>[0]) => ReturnType<typeof setAnchor>) => void;
+/**
+ * The store's `apply`, with the coalesce key it always had and this panel
+ * used to drop. Dropping it meant every slider step was its own undo entry:
+ * 241 of them from one departure-angle drag, which overflowed the history.
+ */
+type Apply = (
+  change: (doc: Parameters<typeof setAnchor>[0]) => ReturnType<typeof setAnchor>,
+  coalesceKey?: string,
+) => void;
 
-function ElementSection({ spec, apply }: { spec: ElementSpec; apply: Apply }): JSX.Element {
+/** Turns NumberField's commit options into the store's coalesce key. */
+function keyFor(id: string, field: string, options: { coalesce: boolean }): string | undefined {
+  return options.coalesce ? `panel:${id}:${field}` : undefined;
+}
+
+function ElementSection({
+  spec,
+  apply,
+  endCoalescing,
+}: {
+  spec: ElementSpec;
+  apply: Apply;
+  endCoalescing: () => void;
+}): JSX.Element {
   return (
     <section>
       <h3>{spec.name}</h3>
@@ -71,7 +98,8 @@ function ElementSection({ spec, apply }: { spec: ElementSpec; apply: Apply }): J
         step={0.0005}
         min={0.001}
         max={0.15}
-        onCommit={(v) => apply((d) => setElementParam(d, spec.id, "leRadius", v))}
+        onCommit={(v, o) => apply((d) => setElementParam(d, spec.id, "leRadius", v), keyFor(spec.id, "leRadius", o))}
+        onCommitEnd={endCoalescing}
       />
       <NumberField
         label="Nose axis"
@@ -81,7 +109,8 @@ function ElementSection({ spec, apply }: { spec: ElementSpec; apply: Apply }): J
         step={0.5}
         min={-30}
         max={30}
-        onCommit={(v) => apply((d) => setElementParam(d, spec.id, "leAxisAngle", toRadians(v)))}
+        onCommit={(v, o) => apply((d) => setElementParam(d, spec.id, "leAxisAngle", toRadians(v)), keyFor(spec.id, "leAxisAngle", o))}
+        onCommitEnd={endCoalescing}
       />
       <NumberField
         label="Trailing edge thickness"
@@ -90,7 +119,8 @@ function ElementSection({ spec, apply }: { spec: ElementSpec; apply: Apply }): J
         step={0.0005}
         min={0}
         max={0.05}
-        onCommit={(v) => apply((d) => setElementParam(d, spec.id, "teThickness", v))}
+        onCommit={(v, o) => apply((d) => setElementParam(d, spec.id, "teThickness", v), keyFor(spec.id, "teThickness", o))}
+        onCommitEnd={endCoalescing}
       />
       <NumberField
         label="Departure angle"
@@ -100,9 +130,8 @@ function ElementSection({ spec, apply }: { spec: ElementSpec; apply: Apply }): J
         step={0.25}
         min={-30}
         max={30}
-        onCommit={(v) =>
-          apply((d) => setElementParam(d, spec.id, "departureAngle", toRadians(v)))
-        }
+        onCommit={(v, o) => apply((d) => setElementParam(d, spec.id, "departureAngle", toRadians(v)), keyFor(spec.id, "departureAngle", o))}
+        onCommitEnd={endCoalescing}
       />
       <NumberField
         label="Wedge angle"
@@ -112,7 +141,8 @@ function ElementSection({ spec, apply }: { spec: ElementSpec; apply: Apply }): J
         step={0.25}
         min={0}
         max={45}
-        onCommit={(v) => apply((d) => setElementParam(d, spec.id, "wedgeAngle", toRadians(v)))}
+        onCommit={(v, o) => apply((d) => setElementParam(d, spec.id, "wedgeAngle", toRadians(v)), keyFor(spec.id, "wedgeAngle", o))}
+        onCommitEnd={endCoalescing}
       />
 
       <h4>Placement</h4>
@@ -121,7 +151,8 @@ function ElementSection({ spec, apply }: { spec: ElementSpec; apply: Apply }): J
         value={spec.placement.chord}
         decimals={4}
         step={0.01}
-        onCommit={(v) => apply((d) => setPlacement(d, spec.id, { chord: v }))}
+        onCommit={(v, o) => apply((d) => setPlacement(d, spec.id, { chord: v }), keyFor(spec.id, "chord", o))}
+        onCommitEnd={endCoalescing}
       />
       <NumberField
         label="Chord angle"
@@ -131,7 +162,10 @@ function ElementSection({ spec, apply }: { spec: ElementSpec; apply: Apply }): J
         step={0.25}
         min={-30}
         max={30}
-        onCommit={(v) => apply((d) => setPlacement(d, spec.id, { chordAngle: toRadians(v) }))}
+        onCommit={(v, o) =>
+          apply((d) => setPlacement(d, spec.id, { chordAngle: toRadians(v) }), keyFor(spec.id, "chordAngle", o))
+        }
+        onCommitEnd={endCoalescing}
       />
     </section>
   );
@@ -141,18 +175,20 @@ function AnchorSection({
   spec,
   anchorIndex,
   apply,
+  endCoalescing,
 }: {
   spec: ElementSpec;
   anchorIndex: number;
   apply: Apply;
+  endCoalescing: () => void;
 }): JSX.Element {
   const element = resolveElement(spec);
   const anchor = element.anchors[anchorIndex] as Anchor;
   const derived = derivedAt(element, anchorIndex);
   const segmentCount = spec.anchors.length - 1;
 
-  const set = (patch: Partial<Anchor>): void => {
-    apply((d) => setAnchor(d, spec.id, anchorIndex, patch));
+  const set = (patch: Partial<Anchor>, coalesceKey?: string): void => {
+    apply((d) => setAnchor(d, spec.id, anchorIndex, patch), coalesceKey);
   };
 
   const role =
@@ -177,7 +213,8 @@ function AnchorSection({
         step={0.005}
         disabled={derived.position}
         disabledReason="The trailing edge sits at x = 1 by the chord normalisation."
-        onCommit={(v) => set({ x: v })}
+        onCommit={(v, o) => set({ x: v }, keyFor(spec.id, "ax:" + anchorIndex, o))}
+        onCommitEnd={endCoalescing}
       />
       <NumberField
         label="y"
@@ -186,7 +223,8 @@ function AnchorSection({
         step={0.005}
         disabled={derived.position}
         disabledReason="Set by teThickness."
-        onCommit={(v) => set({ y: v })}
+        onCommit={(v, o) => set({ y: v }, keyFor(spec.id, "ay:" + anchorIndex, o))}
+        onCommitEnd={endCoalescing}
       />
       <NumberField
         label="Tangent"
@@ -200,7 +238,8 @@ function AnchorSection({
             ? "Set by the nose axis."
             : "Set by the departure and wedge angles."
         }
-        onCommit={(v) => set({ phi: toRadians(v) })}
+        onCommit={(v, o) => set({ phi: toRadians(v) }, keyFor(spec.id, "aphi:" + anchorIndex, o))}
+        onCommitEnd={endCoalescing}
       />
       <NumberField
         label="Radius"
@@ -210,7 +249,8 @@ function AnchorSection({
         allowInfinity
         disabled={derived.radius}
         disabledReason="Set by the leading edge radius."
-        onCommit={(v) => set({ R: v })}
+        onCommit={(v, o) => set({ R: v }, keyFor(spec.id, "aR:" + anchorIndex, o))}
+        onCommitEnd={endCoalescing}
       />
       <NumberField
         label="Arm in"
@@ -219,7 +259,8 @@ function AnchorSection({
         step={0.002}
         min={0.001}
         max={0.5}
-        onCommit={(v) => set({ Lin: v })}
+        onCommit={(v, o) => set({ Lin: v }, keyFor(spec.id, "aLin:" + anchorIndex, o))}
+        onCommitEnd={endCoalescing}
       />
       <NumberField
         label="Arm out"
@@ -228,7 +269,8 @@ function AnchorSection({
         step={0.002}
         min={0.001}
         max={0.5}
-        onCommit={(v) => set({ Lout: v })}
+        onCommit={(v, o) => set({ Lout: v }, keyFor(spec.id, "aLout:" + anchorIndex, o))}
+        onCommitEnd={endCoalescing}
       />
 
       {anchorIndex < segmentCount && (
