@@ -17,6 +17,79 @@ Updated by: setup session
 
 ---
 
+## 2026-09-30b - M2, the SVG editor
+
+### Decisions
+
+**The document transformations live in `packages/geometry`, not in the UI.**
+The M2 acceptance criterion is that a drag and a typed value produce an
+identical document. Asserting that in a test is worth something; making it
+impossible to violate is worth more. Both paths call the same function in
+`edit.ts`, so there is no second code path to drift.
+
+**Element visibility is not in the document.** Hiding an element is about
+looking at a profile, not about the profile, so a hidden element is still
+saved and still exported. Tested.
+
+**Zustand enters the dependency list.** `docs/spec/05-architecture.md`
+names it, so this is the specification being implemented rather than a new
+decision. It replaces hand-rolled context plus reducers; it is 1.2 kB
+gzipped and the store is 150 lines.
+
+### Measurements
+
+| What | Value |
+|---|---|
+| Contour deviation on insert, neighbour arms left alone | 1.2e-2 chord |
+| Contour deviation on insert, arms scaled by de Casteljau | 3.8e-6 to 7.4e-6 chord |
+| Insert then delete, without the arm rescale | 3.1e-4 to 7.9e-3 chord |
+| Insert then delete, with it | 0, worst case 4.7e-13 |
+| Tests | 106 geometry, 13 store |
+
+All deviations measured over four segments at t = 0.25, 0.5 and 0.75 on the
+ladder preset.
+
+### `LESSON:` splitting a segment is a three-anchor operation
+
+The obvious implementation gives the new anchor sensible arms and leaves its
+neighbours alone. That is wrong, and quietly: the neighbours' arms were
+sized for the whole original segment and overshoot into the halves. De
+Casteljau gives the factors for free - `t` for the arm before the split,
+`1 - t` for the arm after - and the deviation drops by a factor of 14.
+
+The same insight makes `deleteAnchor` an exact inverse rather than an
+approximation. The split parameter is recoverable from the departing anchor,
+because the insert set `Lin = t*s/n` and `Lout = (1-t)*s/n`, so
+`t = Lin / (Lin + Lout)` whatever `s` and `n` were.
+
+### `HONEST CORRECTION:` two of them
+
+**The tolerances in the M2 plan were invented.** The plan said the contour
+deviation was "measured at 1.4e-3" before anything had been measured. The
+real value at the time was 1.2e-2, an order of magnitude worse, and the
+number was written in the voice of a measurement. The plan's revision
+section now says so and carries the real table.
+
+**The first version of the deviation test measured the wrong thing.** It
+took point-to-point distance between two sampled contours. The sampler is
+curvature-adaptive, so the same shape sampled twice puts its points in
+different places, and the metric reported 1.2e-2 for a contour whose true
+deviation is 6e-6. It was measuring sample spacing. Deviation between
+contours is point-to-polyline, and the helper in `edit.test.ts` says why.
+
+This one nearly buried the real finding above: the "improvement" from
+scaling the neighbour arms was invisible on two of four segments under the
+broken metric.
+
+### Found by driving the running app, not by a test
+
+The contour was drawn as a hairline and was therefore almost unclickable,
+so selecting a profile by clicking it worked only by luck. A transparent
+wide stroke underneath is the hit target now. No unit test would have
+caught this; it took opening the app and trying to click the thing.
+
+---
+
 ## 2026-09-30a - repository setup and M1 geometry kernel
 
 ### Owner decisions

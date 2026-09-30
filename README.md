@@ -17,11 +17,13 @@ No backend, no account, no download.
 | Milestone | State |
 |---|---|
 | M1 - geometry kernel plus tests | done |
-| M2 - SVG editor, dragging, parameter panels | next |
-| M3 - curvature comb and arclength plot | comb data exists, the plot does not |
+| M2 - SVG editor, dragging, parameter panels | done |
+| M3 - curvature comb and arclength plot | comb is live in the editor, the arclength plot is not |
 | M4 to M7 | not started |
 
-The studio app is a viewer at this point, not the editor.
+Anchors drag, every parameter can be typed, anchors insert and delete,
+elements list and reorder, undo and redo. The curvature comb updates while
+dragging and flags a sign change on the suction side.
 
 ## Getting started
 
@@ -45,7 +47,7 @@ tests and build. It must exit 0 before anything is pushed.
 
 ```
 packages/geometry   pure TypeScript geometry core, zero dependencies
-packages/ui         React components
+packages/ui         React components and the editor store
 packages/solver     Phase 2, worker interface stub
 apps/studio         the standalone app
 docs/spec           the specification - truth
