@@ -1,0 +1,48 @@
+name: CI
+
+# CI runs exactly the self-verification list from CLAUDE.md section 13.
+# If the two ever drift apart, the list in CLAUDE.md is the one that is
+# right and this file is the bug.
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # check-ascii.mjs walks the tracked files, and the version badge
+          # needs a real short SHA.
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: ASCII and English only (golden rule G10)
+        run: node scripts/check-ascii.mjs
+
+      - name: Geometry purity (golden rule G4)
+        run: node scripts/check-geometry-purity.mjs
+
+      - name: No third-party names in user-facing text (golden rule G12)
+        run: node scripts/check-branding.mjs
+
+      - run: pnpm -r typecheck
+
+      - run: pnpm lint
+
+      - run: pnpm -r test
+
+      - run: pnpm -r build
