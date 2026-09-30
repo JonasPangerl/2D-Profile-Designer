@@ -23,7 +23,7 @@ The M2 diff (`d8d681b`) went to an independent reviewer in a fresh context,
 as high-care work must. It came back with five confirmed defects. Three of
 them were exactly the class the diff claimed to be closing, which is the
 argument for the review in one sentence: **the author shared the
-assumptions that produced the bugs.** Fixed in `<pending>`.
+assumptions that produced the bugs.** Fixed in `edf113d`.
 
 ### What it found
 
