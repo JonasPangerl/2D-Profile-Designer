@@ -5,6 +5,8 @@
   --line: #d9dde3;
   --text: #16191d;
   --muted: #5b6570;
+  --accent: #1f6feb;
+  --warn: #d93025;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
@@ -19,28 +21,68 @@ body {
 }
 
 .app {
-  max-width: 1100px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 24px 16px 48px;
+  padding: 20px 16px 48px;
 }
 
 header {
   display: flex;
   align-items: baseline;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
 }
 
 h1 {
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 600;
   margin: 0;
+}
+
+h3 {
+  font-size: 14px;
+  margin: 0 0 10px;
+}
+
+h4 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: 16px 0 8px;
 }
 
 .version {
   color: var(--muted);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
+}
+
+.toolbar {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+button {
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .canvas {
@@ -51,10 +93,198 @@ h1 {
   overflow: hidden;
 }
 
-.canvas svg {
+.editor-surface {
   display: block;
   width: 100%;
   height: auto;
+  touch-action: none;
+}
+
+.contour {
+  fill: none;
+  stroke: #30363d;
+  pointer-events: none;
+}
+
+/* The click target for the contour: invisible, wide, stroke only. */
+.contour-hit {
+  fill: none;
+  stroke: transparent;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.contour.selected {
+  stroke: var(--accent);
+}
+
+.comb {
+  pointer-events: none;
+}
+
+.comb.positive {
+  stroke: #7fb0f5;
+}
+
+.comb.negative {
+  stroke: #f0955f;
+}
+
+.inflection {
+  fill: none;
+  stroke: var(--warn);
+  pointer-events: none;
+}
+
+.handle {
+  fill: var(--panel);
+  stroke: var(--accent);
+  cursor: grab;
+}
+
+.handle.anchor.selected {
+  fill: var(--accent);
+}
+
+.handle.arm {
+  stroke: #7a8796;
+}
+
+.handle.radius {
+  stroke: #9a6bd6;
+}
+
+.handle.derived {
+  stroke: #b4bcc6;
+  fill: none;
+  cursor: not-allowed;
+}
+
+.arm-bar {
+  stroke: #b4bcc6;
+  pointer-events: none;
+}
+
+.radius-bar {
+  stroke: #d9c6f0;
+  pointer-events: none;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(260px, 1.4fr);
+  gap: 16px;
+  margin-top: 16px;
+  align-items: start;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px 16px 18px;
+  font-size: 13px;
+}
+
+.panel-empty {
+  color: var(--muted);
+  margin: 0;
+}
+
+.panel-role {
+  color: var(--muted);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.field {
+  display: grid;
+  grid-template-columns: 150px 1fr 86px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.field-label {
+  color: var(--muted);
+}
+
+.field-unit {
+  margin-left: 4px;
+  opacity: 0.7;
+}
+
+.field-slider {
+  width: 100%;
+  min-width: 60px;
+}
+
+.field-input {
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  width: 100%;
+}
+
+.field-input:disabled {
+  background: #f2f4f7;
+  color: var(--muted);
+}
+
+.field > .field-input:nth-child(2) {
+  grid-column: 2 / 4;
+}
+
+.element-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.element-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+}
+
+.element-list li.selected {
+  border-color: var(--accent);
+  background: #f0f6ff;
+}
+
+.element-name {
+  border: none;
+  background: none;
+  padding: 0;
+  text-align: left;
+  flex: 1;
+}
+
+.element-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.element-actions button {
+  font-size: 11px;
+  padding: 2px 6px;
+}
+
+.anchor-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.anchor-actions h4 {
+  width: 100%;
+  margin-bottom: 4px;
 }
 
 .controls {
@@ -63,25 +293,17 @@ h1 {
   gap: 16px 24px;
   align-items: center;
   margin-top: 16px;
-  padding: 16px;
+  padding: 14px 16px;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .controls label {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.controls input[type="text"] {
-  width: 72px;
-  padding: 4px 6px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  font: inherit;
 }
 
 .value {
@@ -94,4 +316,17 @@ footer p {
   color: var(--muted);
   font-size: 13px;
   margin-top: 16px;
+  max-width: 70ch;
+}
+
+@media (max-width: 860px) {
+  .columns {
+    grid-template-columns: 1fr;
+  }
+  .field {
+    grid-template-columns: 1fr 86px;
+  }
+  .field-slider {
+    display: none;
+  }
 }

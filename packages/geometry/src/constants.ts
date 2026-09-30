@@ -62,3 +62,15 @@ export const CLUSTER_SIN_FLOOR = 0.05;
  * gets twice the density.
  */
 export const DEFAULT_CURVATURE_WEIGHT = 1;
+
+/**
+ * Largest factor by which `deleteAnchor` may grow a neighbour's arm when it
+ * merges two segments back into one.
+ *
+ * Deleting an anchor that was created by a split restores the arms exactly,
+ * because the split parameter is recoverable from the departing anchor. For
+ * a lopsided hand-placed anchor the same formula would ask for an arm many
+ * times the chord, so it is capped. 20 covers every split down to t = 0.05
+ * exactly and clamps only the cases that were never a split.
+ */
+export const MAX_ARM_REGROWTH = 20;

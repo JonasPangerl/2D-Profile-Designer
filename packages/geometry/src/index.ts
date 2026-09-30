@@ -25,6 +25,7 @@ export {
   DEFAULT_CURVATURE_WEIGHT,
   DEFAULT_SAMPLE_COUNT,
   DEFAULT_SEGMENT_DEGREE,
+  MAX_ARM_REGROWTH,
   MIN_ARM_LENGTH,
   MIN_SEGMENT_DEGREE,
   MIN_SPEED,
@@ -71,6 +72,20 @@ export type {
   ContinuityReport,
   InflectionMarker,
 } from "./curvature.js";
+
+export {
+  deleteAnchor,
+  duplicateElement,
+  insertAnchor,
+  moveElement,
+  removeElement,
+  renameElement,
+  setAnchor,
+  setElementParam,
+  setPlacement,
+  setSegmentDegree,
+} from "./edit.js";
+export type { ElementParamKey } from "./edit.js";
 
 export { chainLength, sampleElement } from "./sampling.js";
 export type { SampleOptions } from "./sampling.js";
